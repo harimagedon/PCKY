@@ -1,0 +1,96 @@
+# $ make -f Makefile.run -j 70
+
+# テストデータの親ディレクトリ
+# (分割したファイルが置いてあるディレクトリ）
+# SRC_DIR = /home/corpus/PTB3/treebank_3/parsed/mrg/wsj/23
+SRC_DIR = ./input
+
+# テストに使うコーパスのファイル全てを ls コマンドで取得
+ALL_SRC = $(shell ls $(SRC_DIR)/*.mrg)
+
+# 文法の名前:
+#  - $(GRAMMAR)_ter.pickle ... 語彙規則
+#  - $(GRAMMAR)_non.pickle ... それ以外
+GRAMMAR = h0v2_unk3_binfix
+
+# 実験設定
+# SETTING = -roothandling
+# SETTING = -no_p_beam-no_n_beam_after_binary
+# SETTING = -no_p_beam-logp
+# SETTING = -n_beam_150
+# SETTING = -n_beam_300
+SETTING = -n_beam_500
+# SETTING = -n_beam_700
+
+# 出力ファイルの親ディレクトリ = result/{文法の名前}{実験設定}
+DST_DIR = ./result/$(GRAMMAR)$(SETTING)
+
+# テストデータ全体についての結果を結合したファイル
+CONCAT_TGT = $(DST_DIR)/wsj23.tst
+
+# テストデータの各ファイルに対する出力ファイル
+ALL_TGT = $(patsubst $(SRC_DIR)/%.mrg,$(DST_DIR)/%.tst,$(ALL_SRC))
+
+# make -f Makefile.run したときのターゲット = 全出力を結合したファイル
+all: $(CONCAT_TGT)
+
+# 全出力を結合したファイルの作成
+$(CONCAT_TGT): $(ALL_TGT)
+	cat $(ALL_TGT) > $(CONCAT_TGT)
+
+# 各入力ファイルに対する出力の作成
+#-----------
+# - もとのプログラム
+result/$(GRAMMAR)/%.tst: $(SRC_DIR)/%.mrg
+	@mkdir -p `dirname $@`
+	./pcky-orig.py $(GRAMMAR) $< > $@ 2>$@.log || rm -f $@
+
+# - ビームの適用方法＆ROOTの扱いを変更
+result/$(GRAMMAR)-roothandling/%.tst: $(SRC_DIR)/%.mrg
+	@mkdir -p `dirname $@`
+	./pcky_beaming.py $(GRAMMAR) $< > $@ 2>$@.log || rm -f $@
+
+# - 確率についてもビーム適用 (n_beam=300, p_beam=1000)
+result/$(GRAMMAR)-p_beam/%.tst: $(SRC_DIR)/%.mrg
+	@mkdir -p `dirname $@`
+	./pcky_beaming.py $(GRAMMAR) $< 300 > $@ 2>$@.log || rm -f $@
+
+# - 確率についてもビーム適用 (n_beam=300, p_beam=10000)
+result/$(GRAMMAR)-p_beam-10k/%.tst: $(SRC_DIR)/%.mrg
+	@mkdir -p `dirname $@`
+	./pcky_beaming.py $(GRAMMAR) $< 300 > $@ 2>$@.log || rm -f $@
+
+# - 確率についてもビーム適用 (n_beam=300, p_beam=10^6)
+result/$(GRAMMAR)-p_beam-1M/%.tst: $(SRC_DIR)/%.mrg
+	@mkdir -p `dirname $@`
+	./pcky_beaming.py $(GRAMMAR) $< 300 1000000 > $@ 2>$@.log || rm -f $@
+
+# - 確率ビームなし，シンボル数ビーム150, binary の後のビームなし
+result/$(GRAMMAR)-no_p_beam-no_n_beam_after_binary/%.tst: $(SRC_DIR)/%.mrg
+	@mkdir -p `dirname $@`
+	./pcky_beaming.py $(GRAMMAR) $< 150 None > $@ 2>$@.log || rm -f $@
+
+# - 確率ビームなし，シンボル数ビーム150, binary の後のビームなし, 先に対数を計算
+result/$(GRAMMAR)-no_p_beam-logp/%.tst: $(SRC_DIR)/%.mrg
+	@mkdir -p `dirname $@`
+	./pcky_beaming.py $(GRAMMAR) $< 150 None > $@ 2>$@.log || rm -f $@
+
+# - 確率ビームなし，シンボル数ビーム150, binary の後のビームなし, 先に対数を計算, unk ルールを修正
+result/$(GRAMMAR)-n_beam_150/%.tst: $(SRC_DIR)/%.mrg
+	@mkdir -p `dirname $@`
+	./pcky_beaming.py $(GRAMMAR) $< 150 None > $@ 2>$@.log || rm -f $@
+
+# - 確率ビームなし，シンボル数ビーム300, binary の後のビームなし, 先に対数を計算, unk ルールを修正
+result/$(GRAMMAR)-n_beam_300/%.tst: $(SRC_DIR)/%.mrg
+	@mkdir -p `dirname $@`
+	./pcky_beaming.py $(GRAMMAR) $< 300 None > $@ 2>$@.log || rm -f $@
+    
+# - 確率ビームなし，シンボル数ビーム500, binary の後のビームなし, 先に対数を計算, unk ルールを修正
+result/$(GRAMMAR)-n_beam_500/%.tst: $(SRC_DIR)/%.mrg
+	@mkdir -p `dirname $@`
+	./pcky_beaming.py $(GRAMMAR) $< 500 None > $@ 2>$@.log || rm -f $@
+    
+# - 確率ビームなし，シンボル数ビーム700, binary の後のビームなし, 先に対数を計算, unk ルールを修正
+result/$(GRAMMAR)-n_beam_700/%.tst: $(SRC_DIR)/%.mrg
+	@mkdir -p `dirname $@`
+	./pcky_beaming.py $(GRAMMAR) $< 700 None > $@ 2>$@.log || rm -f $@
